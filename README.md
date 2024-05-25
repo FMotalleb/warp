@@ -7,11 +7,6 @@
 [![LICENSE](https://img.shields.io/github/license/FMotalleb/warp)](LICENSE)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/FMotalleb/warp/build.yml?branch=main)](https://github.com/FMotalleb/warp/actions?query=workflow%3Abuild+branch%3Amain)
 [![Go Report Card](https://goreportcard.com/badge/github.com/FMotalleb/warp)](https://goreportcard.com/report/github.com/FMotalleb/warp)
-[![Codecov](https://codecov.io/gh/FMotalleb/warp/branch/main/graph/badge.svg)](https://codecov.io/gh/FMotalleb/warp)
-
-⭐ `Star` this repository if you find it valuable and worth maintaining.
-
-👁 `Watch` this repository to get notified about new releases, issues, etc.
 
 ## Description
 
