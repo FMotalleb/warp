@@ -14,20 +14,7 @@ archives:
   - format_overrides:
       - goos: windows
         format: zip
-dockers:
-  - image_templates:
-    - "ghcr.io/FMotalleb/warp:latest"
-    - "ghcr.io/FMotalleb/warp:{{ .Major }}"
-    - "ghcr.io/FMotalleb/warp:{{ .Major }}.{{ .Minor }}"
-    - "ghcr.io/FMotalleb/warp:{{ .Major }}.{{ .Minor }}.{{ .Patch }}"
-    build_flag_templates:
-    - "--pull"
-    # OCI annotations: https://github.com/opencontainers/image-spec/blob/main/annotations.md
-    - "--label=org.opencontainers.image.created={{.Date}}"
-    - "--label=org.opencontainers.image.name={{.ProjectName}}"
-    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-    - "--label=org.opencontainers.image.version={{.Version}}"
-    - "--label=org.opencontainers.image.source={{.GitURL}}"
+
 release:
   github:
   name_template: "{{.Version}}"
