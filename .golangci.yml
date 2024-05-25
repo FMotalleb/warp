@@ -5,9 +5,10 @@ linters-settings:
   gocyclo:
     min-complexity: 15
   goimports:
-    local-prefixes: github.com/golang-templates/seed
+    local-prefixes: github.com/FMotalleb/warp
   govet:
-    shadow: true
+    {}
+    # shadow: true
   misspell:
     locale: US
   nolintlint:
@@ -26,7 +27,7 @@ linters:
     - errcheck
     - exportloopref
     - funlen
-    - gochecknoinits
+    # - gochecknoinits
     - gocritic
     - goconst
     - gocyclo
@@ -53,5 +54,5 @@ linters:
     - whitespace
 
 issues:
-  # enable issues excluded by default 
+  # enable issues excluded by default
   exclude-use-default: false
