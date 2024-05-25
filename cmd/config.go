@@ -1,9 +1,14 @@
 package cmd
 
-import "net/url"
+import "time"
 
 type Config struct {
-	Listen  *url.URL
-	Remote  *url.URL
-	Threads uint16
+	ListenProto string
+	ListenAddr  string
+	ListenPort  uint16
+	RemoteProto string
+	RemoteAddr  string
+	RemotePort  uint16
+	Threads     uint16
+	Timeout     time.Duration
 }

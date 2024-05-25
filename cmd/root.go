@@ -17,11 +17,12 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package cmd
 
 import (
-	"net/url"
 	"os"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -38,46 +39,62 @@ to quickly create a Cobra application.`,
 		// Uncomment the following line if your bare application
 		// has an action associated with it:
 		Run: func(cmd *cobra.Command, args []string) {
-			listen, err := cmd.Flags().GetString("listen")
-			if err != nil {
-				logrus.Fatalln(err)
-			}
-			if listen == "" {
-				logrus.Fatalln("listen address cannot be empty")
-			}
-			remote, err := cmd.Flags().GetString("remote")
-			if err != nil {
-				logrus.Fatalln(err)
-			}
-			if remote == "" {
-				logrus.Fatalln("remote address cannot be empty")
-			}
+			listenProto := getString(cmd.Flags(), listenProtoFlag)
+			listen := getString(cmd.Flags(), listenAddrFlag)
+			listenPort := getUint16(cmd.Flags(), listenPortFlag)
+			remoteProto := getString(cmd.Flags(), remoteProtoFlag)
+			remote := getString(cmd.Flags(), remoteAddrFlag)
+			remotePort := getUint16(cmd.Flags(), remotePortFlag)
+			threads := getUint16(cmd.Flags(), threadsFlag)
 
-			listenUri, err := url.Parse(listen)
-			if err != nil {
-				logrus.Fatalln(err)
-			}
-			remoteUri, err := url.Parse(remote)
-			if err != nil {
-				logrus.Fatalln(err)
-			}
-			threads, err := cmd.Flags().GetUint16("threads")
-			if err != nil {
-				logrus.Fatalln(err)
-			}
-			if threads == 0 {
-				logrus.Fatalln("threads value cannot be 0")
-			}
 			Params = &Config{
-				listenUri,
-				remoteUri,
-				threads,
+				ListenProto: listenProto,
+				ListenAddr:  listen,
+				ListenPort:  listenPort,
+				RemoteProto: remoteProto,
+				RemoteAddr:  remote,
+				RemotePort:  remotePort,
+				Threads:     threads,
+				Timeout:     time.Minute,
 			}
 		},
 	}
 
 	Params *Config
 )
+
+func getString(flags *pflag.FlagSet, name FlagName) string {
+	result, err := flags.GetString(name)
+	if err != nil {
+		logrus.Fatalln(err, ": ", name)
+	}
+	if result == "" {
+		logrus.Fatalf("%s cannot be empty", name)
+	}
+	return result
+}
+
+func getUint16(flags *pflag.FlagSet, name FlagName) uint16 {
+	result, err := flags.GetUint16(name)
+	if err != nil {
+		logrus.Fatalln(err)
+	}
+	if result == 0 {
+		logrus.Fatalf("%s cannot be 0", name)
+	}
+	return result
+}
+
+func getDuration(flags *pflag.FlagSet, name FlagName) time.Duration {
+	result, err := flags.GetDuration(name)
+	if err != nil {
+		logrus.Fatalln(err)
+	}
+	if result == 0 {
+		logrus.Fatalf("%s cannot be 0", name)
+	}
+	return result
+}
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
@@ -89,7 +106,27 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.Flags().StringP("listen", "l", "tcp://127.0.0.1:8080", "Listen Address")
-	rootCmd.Flags().StringP("remote", "r", "", "Forward any request received from listen address to this address")
-	rootCmd.Flags().Uint16P("threads", "t", 50, "Thread(Goroutine) count")
+	rootCmd.Flags().StringP(listenAddrFlag, "l", "127.0.0.1", "Listen Address")
+	rootCmd.Flags().Uint16P(listenPortFlag, "p", 8080, "Listen Port")
+	rootCmd.Flags().String(listenProtoFlag, "tcp", "Listen Protocol")
+
+	rootCmd.Flags().String(remoteProtoFlag, "tcp", "Remote protocol")
+	rootCmd.Flags().StringP(remoteAddrFlag, "r", "", "Forward any request received from listen address to this address")
+	rootCmd.Flags().Uint16(remotePortFlag, 0, "Forward any request received from listen address to this port")
+
+	rootCmd.Flags().Uint16(threadsFlag, 50, "Thread(Goroutine) count")
+	rootCmd.Flags().DurationP(timeoutFlag, "t", time.Minute, "Connection Timeout")
 }
+
+type FlagName = string
+
+var (
+	listenAddrFlag  FlagName = "listen-address"
+	listenPortFlag  FlagName = "listen-port"
+	listenProtoFlag FlagName = "listen-protocol"
+	remoteAddrFlag  FlagName = "remote-address"
+	remotePortFlag  FlagName = "remote-port"
+	remoteProtoFlag FlagName = "remote-protocol"
+	threadsFlag     FlagName = "threads"
+	timeoutFlag     FlagName = "timeout"
+)

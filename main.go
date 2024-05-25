@@ -21,7 +21,6 @@ import (
 	"io"
 	"net"
 	"sync"
-	"time"
 
 	"github.com/sirupsen/logrus"
 
@@ -35,10 +34,10 @@ func main() {
 	if cmd.Params == nil {
 		return
 	}
-	logrus.Infof("forwarding requests received from `%s`, to `%s`", cmd.Params.Listen, cmd.Params.Remote)
-	listenAddr := fmt.Sprintf("%s:%s", cmd.Params.Listen.Hostname(), cmd.Params.Listen.Port())
-	remoteAddr = fmt.Sprintf("%s:%s", cmd.Params.Remote.Hostname(), cmd.Params.Remote.Port())
-	listener, err := net.Listen(cmd.Params.Listen.Scheme, listenAddr)
+	logrus.Infof("forwarding requests received from `%s`:`%d`, to `%s`:`%d`", cmd.Params.ListenAddr, cmd.Params.ListenPort, cmd.Params.RemoteAddr, cmd.Params.RemotePort)
+	listenAddr := fmt.Sprintf("%s:%d", cmd.Params.ListenAddr, cmd.Params.ListenPort)
+	remoteAddr = fmt.Sprintf("%s:%d", cmd.Params.RemoteAddr, cmd.Params.RemotePort)
+	listener, err := net.Listen(cmd.Params.ListenProto, listenAddr)
 	if err != nil {
 		logrus.Fatalln(err)
 	}
@@ -46,9 +45,7 @@ func main() {
 	for i := cmd.Params.Threads; i > 0; i-- {
 		go listen(listener)
 	}
-	for {
-		time.Sleep(time.Second)
-	}
+	make(chan interface{}) <- 0
 }
 
 func listen(listener net.Listener) {
@@ -63,20 +60,27 @@ func listen(listener net.Listener) {
 }
 
 func handlePortForward(local net.Conn) {
-	remoteConnectionForwarded, err := net.Dial(cmd.Params.Remote.Scheme, remoteAddr)
+	remoteConnectionForwarded, err := net.DialTimeout(cmd.Params.RemoteProto, remoteAddr, cmd.Params.Timeout)
 	if err != nil {
 		logrus.Warn(err)
 		return
 	}
+	defer remoteConnectionForwarded.Close()
+
 	wg := sync.WaitGroup{}
-	wg.Add(1)
+	wg.Add(2)
 	go func() {
-		io.Copy(local, remoteConnectionForwarded)
+		_, err := io.Copy(local, remoteConnectionForwarded)
+		if err != nil {
+			logrus.Warn(err)
+		}
 		wg.Done()
 	}()
-	wg.Add(1)
 	go func() {
-		io.Copy(remoteConnectionForwarded, local)
+		_, err := io.Copy(remoteConnectionForwarded, local)
+		if err != nil {
+			logrus.Warn(err)
+		}
 		wg.Done()
 	}()
 	wg.Wait()
