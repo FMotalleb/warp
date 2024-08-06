@@ -107,15 +107,15 @@ func Execute() {
 
 func init() {
 	rootCmd.Flags().StringP(listenAddrFlag, "l", "127.0.0.1", "Listen Address")
-	rootCmd.Flags().Uint16P(listenPortFlag, "p", 8080, "Listen Port")
+	rootCmd.Flags().Uint16P(listenPortFlag, "o", 8080, "Listen Port")
 	rootCmd.Flags().String(listenProtoFlag, "tcp", "Listen Protocol")
 
 	rootCmd.Flags().String(remoteProtoFlag, "tcp", "Remote protocol")
 	rootCmd.Flags().StringP(remoteAddrFlag, "r", "", "Forward any request received from listen address to this address")
-	rootCmd.Flags().Uint16(remotePortFlag, 0, "Forward any request received from listen address to this port")
+	rootCmd.Flags().Uint16P(remotePortFlag, "p", 0, "Forward any request received from listen address to this port")
 
 	rootCmd.Flags().Uint16(threadsFlag, 50, "Thread(Goroutine) count")
-	rootCmd.Flags().DurationP(timeoutFlag, "t", time.Minute, "Connection Timeout")
+	rootCmd.Flags().DurationP(timeoutFlag, "t", 0, "Connection Timeout")
 }
 
 type FlagName = string

@@ -60,12 +60,24 @@ func listen(listener net.Listener) {
 }
 
 func handlePortForward(local net.Conn) {
-	remoteConnectionForwarded, err := net.DialTimeout(cmd.Params.RemoteProto, remoteAddr, cmd.Params.Timeout)
+	var remoteConnectionForwarded net.Conn
+	var err error
+
+	if cmd.Params.Timeout != 0 {
+		remoteConnectionForwarded, err = net.DialTimeout(cmd.Params.RemoteProto, remoteAddr, cmd.Params.Timeout)
+	} else {
+		remoteConnectionForwarded, err = net.Dial(cmd.Params.RemoteProto, remoteAddr)
+	}
 	if err != nil {
 		logrus.Warn(err)
 		return
 	}
-	defer remoteConnectionForwarded.Close()
+	defer func() {
+		err := remoteConnectionForwarded.Close()
+		if err != nil {
+			logrus.Warn(err)
+		}
+	}()
 
 	wg := sync.WaitGroup{}
 	wg.Add(2)
