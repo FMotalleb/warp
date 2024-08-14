@@ -17,83 +17,9 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package main
 
 import (
-	"fmt"
-	"io"
-	"net"
-	"sync"
-
-	"github.com/sirupsen/logrus"
-
 	"github.com/FMotalleb/warp/cmd"
 )
 
-var remoteAddr string
-
 func main() {
 	cmd.Execute()
-	if cmd.Params == nil {
-		return
-	}
-	logrus.Infof("forwarding requests received from `%s`:`%d`, to `%s`:`%d`", cmd.Params.ListenAddr, cmd.Params.ListenPort, cmd.Params.RemoteAddr, cmd.Params.RemotePort)
-	listenAddr := fmt.Sprintf("%s:%d", cmd.Params.ListenAddr, cmd.Params.ListenPort)
-	remoteAddr = fmt.Sprintf("%s:%d", cmd.Params.RemoteAddr, cmd.Params.RemotePort)
-	listener, err := net.Listen(cmd.Params.ListenProto, listenAddr)
-	if err != nil {
-		logrus.Fatalln(err)
-	}
-	defer listener.Close()
-	for i := cmd.Params.Threads; i > 0; i-- {
-		go listen(listener)
-	}
-	make(chan interface{}) <- 0
-}
-
-func listen(listener net.Listener) {
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			logrus.Warn(err)
-			continue
-		}
-		go handlePortForward(conn)
-	}
-}
-
-func handlePortForward(local net.Conn) {
-	var remoteConnectionForwarded net.Conn
-	var err error
-
-	if cmd.Params.Timeout != 0 {
-		remoteConnectionForwarded, err = net.DialTimeout(cmd.Params.RemoteProto, remoteAddr, cmd.Params.Timeout)
-	} else {
-		remoteConnectionForwarded, err = net.Dial(cmd.Params.RemoteProto, remoteAddr)
-	}
-	if err != nil {
-		logrus.Warn(err)
-		return
-	}
-	defer func() {
-		err := remoteConnectionForwarded.Close()
-		if err != nil {
-			logrus.Warn(err)
-		}
-	}()
-
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-	go func() {
-		_, err := io.Copy(local, remoteConnectionForwarded)
-		if err != nil {
-			logrus.Warn(err)
-		}
-		wg.Done()
-	}()
-	go func() {
-		_, err := io.Copy(remoteConnectionForwarded, local)
-		if err != nil {
-			logrus.Warn(err)
-		}
-		wg.Done()
-	}()
-	wg.Wait()
 }

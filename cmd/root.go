@@ -17,12 +17,17 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 package cmd
 
 import (
+	"fmt"
+	"net"
 	"os"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+
+	"github.com/FMotalleb/warp/config"
+	"github.com/FMotalleb/warp/transporter"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -39,31 +44,31 @@ to quickly create a Cobra application.`,
 		// Uncomment the following line if your bare application
 		// has an action associated with it:
 		Run: func(cmd *cobra.Command, args []string) {
-			listenProto := getString(cmd.Flags(), listenProtoFlag)
-			listen := getString(cmd.Flags(), listenAddrFlag)
-			listenPort := getUint16(cmd.Flags(), listenPortFlag)
-			remoteProto := getString(cmd.Flags(), remoteProtoFlag)
-			remote := getString(cmd.Flags(), remoteAddrFlag)
-			remotePort := getUint16(cmd.Flags(), remotePortFlag)
-			threads := getUint16(cmd.Flags(), threadsFlag)
-
-			Params = &Config{
-				ListenProto: listenProto,
-				ListenAddr:  listen,
-				ListenPort:  listenPort,
-				RemoteProto: remoteProto,
-				RemoteAddr:  remote,
-				RemotePort:  remotePort,
-				Threads:     threads,
-				Timeout:     time.Minute,
+			if Params == nil {
+				return
 			}
+			logrus.Infof("forwarding requests received from `%s`:`%d`, to `%s`:`%d`", Params.ListenAddr, Params.ListenPort, Params.RemoteAddr, Params.RemotePort)
+			listenAddr := fmt.Sprintf("%s:%d", Params.ListenAddr, Params.ListenPort)
+
+			listener, err := net.Listen(Params.ListenProto, listenAddr)
+			if err != nil {
+				logrus.Fatalln(err)
+			}
+			defer func() {
+				err := listener.Close()
+				logrus.Warnf("failed to close listener: %v", err)
+			}()
+			for i := Params.Threads; i > 0; i-- {
+				go transporter.Listen(listener, Params)
+			}
+			make(chan interface{}) <- 0
 		},
 	}
 
-	Params *Config
+	Params *config.Config = &config.Config{}
 )
 
-func getString(flags *pflag.FlagSet, name FlagName) string {
+func getString(flags *pflag.FlagSet, name flagName) string {
 	result, err := flags.GetString(name)
 	if err != nil {
 		logrus.Fatalln(err, ": ", name)
@@ -74,7 +79,7 @@ func getString(flags *pflag.FlagSet, name FlagName) string {
 	return result
 }
 
-func getUint16(flags *pflag.FlagSet, name FlagName) uint16 {
+func getUint16(flags *pflag.FlagSet, name flagName) uint16 {
 	result, err := flags.GetUint16(name)
 	if err != nil {
 		logrus.Fatalln(err)
@@ -85,7 +90,7 @@ func getUint16(flags *pflag.FlagSet, name FlagName) uint16 {
 	return result
 }
 
-func getDuration(flags *pflag.FlagSet, name FlagName) time.Duration {
+func getDuration(flags *pflag.FlagSet, name flagName) time.Duration {
 	result, err := flags.GetDuration(name)
 	if err != nil {
 		logrus.Fatalln(err)
@@ -106,27 +111,31 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.Flags().StringP(listenAddrFlag, "l", "127.0.0.1", "Listen Address")
-	rootCmd.Flags().Uint16P(listenPortFlag, "o", 8080, "Listen Port")
-	rootCmd.Flags().String(listenProtoFlag, "tcp", "Listen Protocol")
+	rootCmd.Flags().StringVarP(&Params.ListenAddr, listenAddrFlag, "l", "127.0.0.1", "Listen Address")
+	rootCmd.Flags().Uint16VarP(&Params.ListenPort, listenPortFlag, "o", 8080, "Listen Port")
+	rootCmd.Flags().StringVar(&Params.ListenProto, listenProtoFlag, "tcp", "Listen Protocol")
 
-	rootCmd.Flags().String(remoteProtoFlag, "tcp", "Remote protocol")
-	rootCmd.Flags().StringP(remoteAddrFlag, "r", "", "Forward any request received from listen address to this address")
-	rootCmd.Flags().Uint16P(remotePortFlag, "p", 0, "Forward any request received from listen address to this port")
+	rootCmd.Flags().StringVarP(&Params.RemoteAddr, remoteAddrFlag, "r", "", "Forward any request received from listen address to this address")
+	rootCmd.Flags().Uint16VarP(&Params.RemotePort, remotePortFlag, "p", 0, "Forward any request received from listen address to this port")
+	rootCmd.Flags().StringVar(&Params.RemoteProto, remoteProtoFlag, "tcp", "Remote protocol")
 
-	rootCmd.Flags().Uint16(threadsFlag, 50, "Thread(Goroutine) count")
-	rootCmd.Flags().DurationP(timeoutFlag, "t", 0, "Connection Timeout")
+	rootCmd.Flags().Uint16Var(&Params.Threads, threadsFlag, 50, "Thread(Goroutine) count")
+	rootCmd.Flags().DurationVarP(&Params.Timeout, timeoutFlag, "t", 0, "Connection Timeout")
+	rootCmd.Flags().BoolVar(&Params.Intercept, interceptFlag, false, "Printout Transferring data")
+	rootCmd.Flags().BoolVar(&Params.Base64Intercept, base64InterceptFlag, false, "Printout Transferring data base64 encoded")
 }
 
-type FlagName = string
+type flagName = string
 
 var (
-	listenAddrFlag  FlagName = "listen-address"
-	listenPortFlag  FlagName = "listen-port"
-	listenProtoFlag FlagName = "listen-protocol"
-	remoteAddrFlag  FlagName = "remote-address"
-	remotePortFlag  FlagName = "remote-port"
-	remoteProtoFlag FlagName = "remote-protocol"
-	threadsFlag     FlagName = "threads"
-	timeoutFlag     FlagName = "timeout"
+	listenAddrFlag      flagName = "listen-address"
+	listenPortFlag      flagName = "listen-port"
+	listenProtoFlag     flagName = "listen-protocol"
+	remoteAddrFlag      flagName = "remote-address"
+	remotePortFlag      flagName = "remote-port"
+	remoteProtoFlag     flagName = "remote-protocol"
+	threadsFlag         flagName = "threads"
+	timeoutFlag         flagName = "timeout"
+	interceptFlag       flagName = "intercept"
+	base64InterceptFlag flagName = "b64-intercept"
 )
