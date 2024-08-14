@@ -44,7 +44,7 @@ func handlePortForward(local net.Conn, cfg *config.Config) {
 	}()
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
+	wg.Add(2)
 	go func() {
 		out := &interceptor.Interceptor{
 			Prefix:        fmt.Sprintf("%s <", local.RemoteAddr()),
