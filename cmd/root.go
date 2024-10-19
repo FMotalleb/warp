@@ -27,7 +27,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/FMotalleb/warp/config"
-	"github.com/FMotalleb/warp/transporter"
+	"github.com/FMotalleb/warp/raw/transporter"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -44,13 +44,15 @@ to quickly create a Cobra application.`,
 		// Uncomment the following line if your bare application
 		// has an action associated with it:
 		Run: func(cmd *cobra.Command, args []string) {
-			if Params == nil {
+			if rawParams == nil {
 				return
 			}
-			logrus.Infof("forwarding requests received from `%s`:`%d`, to `%s`:`%d`", Params.ListenAddr, Params.ListenPort, Params.RemoteAddr, Params.RemotePort)
-			listenAddr := fmt.Sprintf("%s:%d", Params.ListenAddr, Params.ListenPort)
+			rawParams.GlobalConfig = *globalParams
 
-			listener, err := net.Listen(Params.ListenProto, listenAddr)
+			logrus.Infof("forwarding requests received from `%s`:`%d`, to `%s`:`%d`", rawParams.ListenAddr, rawParams.ListenPort, rawParams.RemoteAddr, rawParams.RemotePort)
+			listenAddr := fmt.Sprintf("%s:%d", rawParams.ListenAddr, rawParams.ListenPort)
+
+			listener, err := net.Listen(rawParams.ListenProto, listenAddr)
 			if err != nil {
 				logrus.Fatalln(err)
 			}
@@ -58,14 +60,15 @@ to quickly create a Cobra application.`,
 				err := listener.Close()
 				logrus.Warnf("failed to close listener: %v", err)
 			}()
-			for i := Params.Threads; i > 0; i-- {
-				go transporter.Listen(listener, Params)
+			for i := globalParams.Threads; i > 0; i-- {
+				go transporter.Listen(listener, rawParams)
 			}
 			make(chan interface{}) <- 0
 		},
 	}
 
-	Params *config.Config = &config.Config{}
+	rawParams    *config.RawConfig    = &config.RawConfig{}
+	globalParams *config.GlobalConfig = &config.GlobalConfig{}
 )
 
 func getString(flags *pflag.FlagSet, name flagName) string {
@@ -111,18 +114,18 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.Flags().StringVarP(&Params.ListenAddr, listenAddrFlag, "l", "127.0.0.1", "Listen Address")
-	rootCmd.Flags().Uint16VarP(&Params.ListenPort, listenPortFlag, "o", 8080, "Listen Port")
-	rootCmd.Flags().StringVar(&Params.ListenProto, listenProtoFlag, "tcp", "Listen Protocol")
+	rootCmd.Flags().StringVarP(&rawParams.ListenAddr, listenAddrFlag, "l", "127.0.0.1", "Listen Address")
+	rootCmd.Flags().Uint16VarP(&rawParams.ListenPort, listenPortFlag, "o", 8080, "Listen Port")
+	rootCmd.Flags().StringVar(&rawParams.ListenProto, listenProtoFlag, "tcp", "Listen Protocol")
 
-	rootCmd.Flags().StringVarP(&Params.RemoteAddr, remoteAddrFlag, "r", "", "Forward any request received from listen address to this address")
-	rootCmd.Flags().Uint16VarP(&Params.RemotePort, remotePortFlag, "p", 0, "Forward any request received from listen address to this port")
-	rootCmd.Flags().StringVar(&Params.RemoteProto, remoteProtoFlag, "tcp", "Remote protocol")
+	rootCmd.Flags().StringVarP(&rawParams.RemoteAddr, remoteAddrFlag, "r", "", "Forward any request received from listen address to this address")
+	rootCmd.Flags().Uint16VarP(&rawParams.RemotePort, remotePortFlag, "p", 0, "Forward any request received from listen address to this port")
+	rootCmd.Flags().StringVar(&rawParams.RemoteProto, remoteProtoFlag, "tcp", "Remote protocol")
 
-	rootCmd.Flags().Uint16Var(&Params.Threads, threadsFlag, 50, "Thread(Goroutine) count")
-	rootCmd.Flags().DurationVarP(&Params.Timeout, timeoutFlag, "t", 0, "Connection Timeout")
-	rootCmd.Flags().BoolVar(&Params.Intercept, interceptFlag, false, "Printout Transferring data")
-	rootCmd.Flags().BoolVar(&Params.Base64Intercept, base64InterceptFlag, false, "Printout Transferring data base64 encoded")
+	rootCmd.PersistentFlags().Uint16Var(&globalParams.Threads, threadsFlag, 50, "Thread(Goroutine) count")
+	rootCmd.PersistentFlags().DurationVarP(&globalParams.Timeout, timeoutFlag, "t", 0, "Connection Timeout")
+	rootCmd.PersistentFlags().BoolVar(&globalParams.Intercept, interceptFlag, false, "Printout Transferring data")
+	rootCmd.PersistentFlags().BoolVar(&globalParams.Base64Intercept, base64InterceptFlag, false, "Printout Transferring data base64 encoded")
 }
 
 type flagName = string

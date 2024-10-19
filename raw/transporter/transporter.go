@@ -12,7 +12,7 @@ import (
 	"github.com/FMotalleb/warp/interceptor"
 )
 
-func Listen(listener net.Listener, cfg *config.Config) {
+func Listen(listener net.Listener, cfg *config.RawConfig) {
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -23,7 +23,7 @@ func Listen(listener net.Listener, cfg *config.Config) {
 	}
 }
 
-func handlePortForward(local net.Conn, cfg *config.Config) {
+func handlePortForward(local net.Conn, cfg *config.RawConfig) {
 	var remoteConnectionForwarded net.Conn
 	var err error
 
