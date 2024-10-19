@@ -32,7 +32,8 @@ func handleSNI(conn net.Conn, rawParams *config.SNIConfig) {
 		logrus.Warnf("Failed to read TCP handshake: %v", err)
 		return
 	}
-	followupSize := int(buff[7])*255 + int(buff[8]) + 1
+	// TODO Buggy (forged request can allocate a large buffer)
+	followupSize := int(buff[6])*255*255 + int(buff[7])*255 + int(buff[8]) + 1
 	finalBuffer := make([]byte, len(buff)+followupSize)
 	copy(finalBuffer, buff)
 	_, err = conn.Read(finalBuffer[len(buff):])
